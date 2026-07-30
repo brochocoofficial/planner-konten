@@ -16,10 +16,12 @@ import {
   Printer,
   FileSpreadsheet,
   Eye,
-  Volume2
+  Volume2,
+  FileType
 } from "lucide-react";
 import { GeneratedContentResult, ContentIdea } from "../types";
 import { IdeaDetailModal } from "./IdeaDetailModal";
+import { downloadPdfReport } from "../utils/generatePdf";
 
 interface OutputViewProps {
   result: GeneratedContentResult;
@@ -211,6 +213,10 @@ ${result.captionData.fullText}
     document.body.removeChild(element);
   };
 
+  const handleDownloadPdf = () => {
+    downloadPdfReport(result);
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -259,16 +265,25 @@ ${result.captionData.fullText}
           {/* Action Bar: Copy All & Download Buttons */}
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <button
-              onClick={handleDownloadTxt}
+              onClick={handleDownloadPdf}
               className="flex-1 md:flex-none py-2.5 px-3.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(14,165,233,0.3)] transition-all cursor-pointer"
+              title="Download Hasil Strategi dalam Format PDF"
             >
-              <Download className="w-4 h-4" />
-              <span>Download TXT</span>
+              <FileType className="w-4 h-4" />
+              <span>Download PDF</span>
+            </button>
+
+            <button
+              onClick={handleDownloadTxt}
+              className="flex-1 md:flex-none py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-sky-400" />
+              <span>.TXT</span>
             </button>
 
             <button
               onClick={handleDownloadMarkdown}
-              className="flex-1 md:flex-none py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              className="flex-1 md:flex-none py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
               <FileText className="w-4 h-4 text-sky-400" />
               <span>.MD</span>
@@ -277,7 +292,7 @@ ${result.captionData.fullText}
             <button
               onClick={handlePrint}
               className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              title="Cetak / Simpan sebagai PDF"
+              title="Cetak / Simpan melalui Printer Browser"
             >
               <Printer className="w-4 h-4 text-slate-400" />
             </button>
