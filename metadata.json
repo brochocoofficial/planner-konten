@@ -1,0 +1,8 @@
+{
+  "name": "Remix Affiliate Content Generator",
+  "description": "Generator Konten Pilar, 30 Ide Konten, Hook 2 Detik, Script Video, Caption + CTA + Hashtag, dan Text Overlay untuk Affiliate Marketer",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
