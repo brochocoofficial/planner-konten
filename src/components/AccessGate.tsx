@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { Lock, Key, ShieldAlert, Check, Copy, ArrowRight, Sparkles, LogOut } from "lucide-react";
+import { Lock, Key, ShieldAlert, Check, Copy, ArrowRight, LogOut, Crown, UserCheck } from "lucide-react";
 
 interface AccessGateProps {
   children: React.ReactNode;
 }
 
-export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
-  // Master key set via env variable VITE_ACCESS_KEY or fallback default
-  const masterKey = import.meta.env.VITE_ACCESS_KEY || "AFFILIATE2026";
+type UserRole = "owner" | "user" | null;
 
-  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
+  // Passcode keys set via Environment Variables or fallback defaults
+  const ownerKey = import.meta.env.VITE_OWNER_KEY || "OWNER2026";
+  const userKey = import.meta.env.VITE_USER_KEY || import.meta.env.VITE_ACCESS_KEY || "AFFILIATE2026";
+
+  const [role, setRole] = useState<UserRole>(null);
   const [inputKey, setInputKey] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
     // 1. Check URL query params for ?access_key=... or ?key=...
@@ -20,50 +24,77 @@ export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
     const queryKey = urlParams.get("access_key") || urlParams.get("key");
 
     if (queryKey) {
-      if (queryKey === masterKey) {
-        localStorage.setItem("affiliate_access_token", queryKey);
-        setIsAuthorized(true);
-        // Clean URL query param for aesthetics
-        const cleanUrl = window.location.origin + window.location.pathname;
-        window.history.replaceState({}, document.title, cleanUrl);
+      if (queryKey === ownerKey) {
+        localStorage.setItem("affiliate_access_token", ownerKey);
+        localStorage.setItem("affiliate_user_role", "owner");
+        setRole("owner");
+        cleanUrl();
+        setIsChecking(false);
+        return;
+      } else if (queryKey === userKey) {
+        localStorage.setItem("affiliate_access_token", userKey);
+        localStorage.setItem("affiliate_user_role", "user");
+        setRole("user");
+        cleanUrl();
+        setIsChecking(false);
         return;
       }
     }
 
     // 2. Check localStorage
     const savedToken = localStorage.getItem("affiliate_access_token");
-    if (savedToken === masterKey) {
-      setIsAuthorized(true);
+    if (savedToken === ownerKey) {
+      setRole("owner");
+    } else if (savedToken === userKey) {
+      setRole("user");
     } else {
-      setIsAuthorized(false);
+      setRole(null);
     }
-  }, [masterKey]);
+
+    setIsChecking(false);
+  }, [ownerKey, userKey]);
+
+  const cleanUrl = () => {
+    const cleanPath = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, document.title, cleanPath);
+  };
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputKey.trim() === masterKey) {
-      localStorage.setItem("affiliate_access_token", masterKey);
-      setIsAuthorized(true);
+    const trimmed = inputKey.trim();
+
+    if (trimmed === ownerKey) {
+      localStorage.setItem("affiliate_access_token", ownerKey);
+      localStorage.setItem("affiliate_user_role", "owner");
+      setRole("owner");
+      setErrorMsg(null);
+    } else if (trimmed === userKey) {
+      localStorage.setItem("affiliate_access_token", userKey);
+      localStorage.setItem("affiliate_user_role", "user");
+      setRole("user");
       setErrorMsg(null);
     } else {
-      setErrorMsg("Kode akses salah. Silakan minta kode / link resmi dari Owner.");
+      setErrorMsg("Kode PIN salah. Silakan minta PIN / link resmi dari Owner.");
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem("affiliate_access_token");
-    setIsAuthorized(false);
+    localStorage.removeItem("affiliate_user_role");
+    setRole(null);
+    setInputKey("");
   };
 
-  const handleCopyOwnerLink = () => {
-    const shareableUrl = `${window.location.origin}${window.location.pathname}?access_key=${masterKey}`;
+  const handleCopyUserShareLink = () => {
+    // Generates share link containing ONLY the User Key so shared users can't see/use owner privileges
+    const shareableUrl = `${window.location.origin}${window.location.pathname}?access_key=${userKey}`;
     navigator.clipboard.writeText(shareableUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
-  // Loading state
-  if (isAuthorized === null) {
+  // Loading state during initial token check
+  if (isChecking) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
         <div className="animate-pulse flex items-center gap-2">
@@ -74,42 +105,56 @@ export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
     );
   }
 
-  // Authorized: render main app + optional owner bar header
-  if (isAuthorized) {
+  // Authorized view: Render main application + Top Private Header Bar
+  if (role === "owner" || role === "user") {
     return (
       <div className="relative">
         {/* Top Private Access Bar */}
         <div className="bg-slate-900 border-b border-slate-800/80 text-xs py-1.5 px-4 text-slate-400 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="text-slate-300 font-medium">Status: Private App Active</span>
+            {role === "owner" ? (
+              <span className="text-amber-300 font-semibold flex items-center gap-1.5">
+                <Crown className="w-3.5 h-3.5 text-amber-400" />
+                <span>Owner Mode</span>
+              </span>
+            ) : (
+              <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-sky-400" />
+                <span>Private App Active</span>
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopyOwnerLink}
-              className="px-2.5 py-1 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Salin Link Akses Otomatis untuk Dibagikan ke Klien/User"
-            >
-              {copiedLink ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400 font-semibold">Link Akses Disalin!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Salin Private Share Link</span>
-                </>
-              )}
-            </button>
+            {/* ONLY Owner can see and copy the user share link */}
+            {role === "owner" && (
+              <button
+                onClick={handleCopyUserShareLink}
+                className="px-2.5 py-1 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 flex items-center gap-1.5 transition-colors cursor-pointer text-xs"
+                title="Salin Link Akses Khusus User untuk Dibagikan ke Klien/Tim"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-400 font-semibold">Link User Disalin!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Salin Link Akses User</span>
+                  </>
+                )}
+              </button>
+            )}
 
             <button
               onClick={handleLogout}
-              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition-colors"
+              className="p-1 px-2 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition-colors flex items-center gap-1 text-xs cursor-pointer"
               title="Keluar / Kunci Kembali"
             >
               <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Keluar</span>
             </button>
           </div>
         </div>
@@ -119,7 +164,7 @@ export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
     );
   }
 
-  // Not authorized: render Access Gate Screen
+  // Not authorized: Render Login Screen
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-[0_0_50px_rgba(14,165,233,0.15)] relative overflow-hidden">
@@ -132,7 +177,7 @@ export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
           </div>
           <h1 className="text-xl font-bold text-white tracking-tight">Aplikasi Terbatas (Private)</h1>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Hanya pengguna yang memiliki kode PIN resmi atau link khusus dari Owner yang dapat mengakses tool ini.
+            Hanya pengguna yang memiliki PIN resmi atau link khusus dari Owner yang dapat mengakses tool ini.
           </p>
         </div>
 
@@ -140,7 +185,7 @@ export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
               <Key className="w-3.5 h-3.5 text-sky-400" />
-              <span>Masukkan Kode Akses PIN:</span>
+              <span>Masukkan Kode PIN Akses:</span>
             </label>
             <input
               type="password"
@@ -149,7 +194,7 @@ export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
                 setInputKey(e.target.value);
                 setErrorMsg(null);
               }}
-              placeholder="Ketik Kode PIN..."
+              placeholder="Masukkan PIN..."
               className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all placeholder-slate-600 tracking-widest text-center font-mono"
               autoFocus
             />
@@ -173,7 +218,7 @@ export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
 
         <div className="mt-6 pt-4 border-t border-slate-800 text-center">
           <p className="text-[11px] text-slate-500">
-            Belum punya akses? Minta link akses private langsung kepada pemilik website.
+            Belum punya akses? Minta link atau PIN akses langsung kepada pemilik aplikasi.
           </p>
         </div>
       </div>
