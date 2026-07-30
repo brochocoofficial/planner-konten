@@ -1,0 +1,13 @@
+const response = await fetch('/api/generate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload),
+});
+
+// Cek apakah response HTTP sukses (status 200 OK)
+if (!response.ok) {
+  const errorText = await response.text();
+  throw new Error(`Server error (${response.status}): ${errorText.substring(0, 100)}`);
+}
+
+const data = await response.json();
