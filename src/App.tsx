@@ -75,12 +75,7 @@ export default function App() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify(input)
-      })
-      // Cek apakah respons dari Vercel sukses
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`Server Error (${res.status}): Terjadi kendala sambungan ke API.`);
-        };
+      });
 
       const resData = await response.json();
 
