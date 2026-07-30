@@ -4,6 +4,7 @@ import { ProductForm } from "./components/ProductForm";
 import { LoadingView } from "./components/LoadingView";
 import { OutputView } from "./components/OutputView";
 import { HistoryDrawer } from "./components/HistoryDrawer";
+import { AccessGate } from "./components/AccessGate";
 import { GenerationRequestInput, GeneratedContentResult } from "./types";
 import { AlertTriangle, Sparkles, ShoppingBag, ShieldCheck, HelpCircle } from "lucide-react";
 
@@ -119,8 +120,9 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
-      {/* Header */}
+    <AccessGate>
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+        {/* Header */}
       <Header
         onOpenHistory={() => setIsHistoryOpen(true)}
         historyCount={history.length}
@@ -222,5 +224,6 @@ export default function App() {
         <p>© 2026 Affiliate Content Generator AI • Pembantu Sukses Creator Affiliate Indonesia</p>
       </footer>
     </div>
+  </AccessGate>
   );
 }
