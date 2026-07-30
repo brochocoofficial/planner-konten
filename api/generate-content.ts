@@ -247,13 +247,41 @@ Silakan analisis gambar produk (jika disertakan) serta detail di atas untuk meng
     const parts: any[] = [];
 
     if (imageBase64) {
-      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-      parts.push({
-        inlineData: {
-          mimeType: imageMimeType || "image/jpeg",
-          data: cleanBase64
+      if (imageBase64.startsWith("http://") || imageBase64.startsWith("https://")) {
+        try {
+          const imgRes = await fetch(imageBase64);
+          if (imgRes.ok) {
+            const arrayBuffer = await imgRes.arrayBuffer();
+            const fetchedBase64 = Buffer.from(arrayBuffer).toString("base64");
+            const contentType = imgRes.headers.get("content-type") || imageMimeType || "image/jpeg";
+            parts.push({
+              inlineData: {
+                mimeType: contentType,
+                data: fetchedBase64
+              }
+            });
+          }
+        } catch (fetchErr) {
+          console.warn("Failed to fetch preset image URL, proceeding without image:", fetchErr);
         }
-      });
+      } else if (imageBase64.startsWith("data:")) {
+        const matches = imageBase64.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          parts.push({
+            inlineData: {
+              mimeType: matches[1],
+              data: matches[2]
+            }
+          });
+        }
+      } else {
+        parts.push({
+          inlineData: {
+            mimeType: imageMimeType || "image/jpeg",
+            data: imageBase64
+          }
+        });
+      }
     }
 
     parts.push({ text: userPrompt });
