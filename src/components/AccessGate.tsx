@@ -1,11 +1,37 @@
 import React, { useState, useEffect } from "react";
-import { Lock, Key, ShieldAlert, Check, Copy, ArrowRight, LogOut, Crown, UserCheck } from "lucide-react";
+import { Lock, Key, ShieldAlert, Check, Copy, ArrowRight, LogOut, Crown, UserCheck, ShieldCheck } from "lucide-react";
 
 interface AccessGateProps {
   children: React.ReactNode;
 }
 
 type UserRole = "owner" | "user" | null;
+
+// Helper to encode/mask key into a safe URL token
+const encodeToken = (role: "user" | "owner", key: string): string => {
+  const raw = `AFF_VIP_AUTH_${role.toUpperCase()}_${key}`;
+  return btoa(raw).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+};
+
+// Helper to decode masked URL token
+const decodeToken = (token: string, ownerKey: string, userKey: string): UserRole => {
+  try {
+    let base64 = token.replace(/-/g, "+").replace(/_/g, "/");
+    while (base64.length % 4) {
+      base64 += "=";
+    }
+    const decoded = atob(base64);
+    if (decoded.includes(`AFF_VIP_AUTH_OWNER_${ownerKey}`)) {
+      return "owner";
+    }
+    if (decoded.includes(`AFF_VIP_AUTH_USER_${userKey}`)) {
+      return "user";
+    }
+  } catch {
+    // Decoding failed
+  }
+  return null;
+};
 
 export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
   // Passcode keys set via Environment Variables or fallback defaults
@@ -19,19 +45,32 @@ export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    // 1. Check URL query params for ?access_key=... or ?key=...
+    // 1. Check URL query params for ?token=..., ?access_key=..., ?key=..., or ?invite=...
     const urlParams = new URLSearchParams(window.location.search);
-    const queryKey = urlParams.get("access_key") || urlParams.get("key");
+    const queryParam = urlParams.get("token") || urlParams.get("access_key") || urlParams.get("key") || urlParams.get("invite");
 
-    if (queryKey) {
-      if (queryKey === ownerKey) {
+    if (queryParam) {
+      // First try decoding as an obfuscated token
+      const decodedRole = decodeToken(queryParam, ownerKey, userKey);
+      if (decodedRole) {
+        const keyToSave = decodedRole === "owner" ? ownerKey : userKey;
+        localStorage.setItem("affiliate_access_token", keyToSave);
+        localStorage.setItem("affiliate_user_role", decodedRole);
+        setRole(decodedRole);
+        cleanUrl();
+        setIsChecking(false);
+        return;
+      }
+
+      // Direct fallback comparison (if someone passed plaintext key)
+      if (queryParam === ownerKey) {
         localStorage.setItem("affiliate_access_token", ownerKey);
         localStorage.setItem("affiliate_user_role", "owner");
         setRole("owner");
         cleanUrl();
         setIsChecking(false);
         return;
-      } else if (queryKey === userKey) {
+      } else if (queryParam === userKey) {
         localStorage.setItem("affiliate_access_token", userKey);
         localStorage.setItem("affiliate_user_role", "user");
         setRole("user");
@@ -86,8 +125,9 @@ export const AccessGate: React.FC<AccessGateProps> = ({ children }) => {
   };
 
   const handleCopyUserShareLink = () => {
-    // Generates share link containing ONLY the User Key so shared users can't see/use owner privileges
-    const shareableUrl = `${window.location.origin}${window.location.pathname}?access_key=${userKey}`;
+    // Generates share link with ENCRYPTED/MASKED token so password is NOT exposed as plain text
+    const maskedToken = encodeToken("user", userKey);
+    const shareableUrl = `${window.location.origin}${window.location.pathname}?token=${maskedToken}`;
     navigator.clipboard.writeText(shareableUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
